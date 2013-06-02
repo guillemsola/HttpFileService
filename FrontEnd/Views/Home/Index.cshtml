@@ -1,0 +1,156 @@
+﻿@model dynamic
+
+@{
+    ViewBag.Title = "Home";
+    Layout = "~/Views/Shared/_BootstrapLayout.cshtml";
+}
+<div id="message">
+    
+</div>
+<h2 data-bind="text: fullPath"></h2>
+
+<div class="row">
+    <ul data-bind="foreach: entries" class="thumbnails">
+        <li class="span2">
+            <div class="thumbnail" data-bind="click: $parent.selectItem" style="height: 192px">
+                <img data-bind="attr: { src: icon}"/>
+                <strong><span data-bind="text: name"></span></strong>
+                <p><span data-bind="text: size"></span></p>
+            </div>
+        </li>
+    </ul>
+</div>
+
+@section scripts
+{
+    <script type="text/javascript">
+        var extensions = {
+            accdb: "accdb.png",
+            avi: "avi.png",
+            bmp: "bmp.png",
+            css: "css.png",
+            docx: "docx win.png",
+            eml: "eml.png",
+            eps: "eps.png",
+            fla: "fla.png",
+            gif: "gif.png",
+            html: "html.png",
+            htm: "html.png",
+            ind: "ind.png",
+            ini: "ini.png",
+            jpeg: "jpeg.png",
+            jsf: "jsf.png",
+            midi: "midi.png",
+            mov: "mov.png",
+            mp: "mp 3.png",
+            mpeg: "mpeg.png",
+            pdf: "pdf.png",
+            png: "png.png",
+            pptx: "pptx win.png",
+            proj: "proj.png",
+            psd: "psd.png",
+            pst: "pst.png",
+            pub: "pub.png",
+            rar: "rar.png",
+            readme: "readme.png",
+            settings: "settings.png",
+            text: "text.png",
+            tiff: "tiff.png",
+            url: "url.png",
+            vsd: "vsd.png",
+            wav: "wav.png",
+            wma: "wma.png",
+            wmv: "wmv.png",
+            xlsx: "xlsx win.png",
+            zip: "zip.png"
+        };
+
+        function Entry(data) {
+            this.name = ko.observable(data.Name);
+            this.url = ko.observable(data.FullPath);
+
+            this.size = ko.computed(function() {
+                if (typeof data.Size === "undefined")
+                    return "";
+                return bytesToSize(data.Size);
+            });
+
+            this.icon = ko.computed(function() {
+                var image = "folder.png";
+
+                if (typeof data.Extension !== "undefined") {
+                    image = extensions[data.Extension];
+
+                    if (image == null) {
+                        image = "empty.png";
+                    }
+                }
+
+                return "img/icons/" + image;
+            });
+        }
+
+        function bytesToSize(bytes) {
+            var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            var posttxt = 0;
+            if (bytes == 0) return 'n/a';
+            while (bytes >= 1024) {
+                posttxt++;
+                bytes = bytes / 1024;
+            }
+            return parseInt(bytes).toFixed(0) + " " + sizes[posttxt];
+        }
+
+        function EntriesViewModel() {
+            var self = this;
+
+            self.entries = ko.observableArray([]);
+            self.fullPath = ko.observable();
+            self.name = ko.observable();
+
+            function pushArrayElement(element) {
+                self.entries.push(new Entry(element));
+            }
+
+            self.selectItem = function (entry) {
+                if (entry.size() == "") {
+                    self.loadData(entry.url());
+                } else {
+                    window.open("/file/get/?file=" + entry.url());
+                }
+            };
+
+            self.loadData = function(getPath) {
+                // Load initial state from server, convert it to entries, then populate
+                $.getJSON("/api/Folders/?path=" + getPath, function(data) {
+                    self.entries.removeAll();
+                    $.each(data, function(key, value) {
+                        switch (key) {
+                        case 'Directories':
+                        case 'Files':
+                            value.forEach(pushArrayElement);
+                            break;
+                        case 'FullPath':
+                            if (value != null)
+                                self.fullPath(value);
+                        case 'Name':
+                            if (value != null)
+                                self.name(value);
+                            if (self.name() == "")
+                                self.name("root");
+                        default:
+                        }
+                    });
+                })
+                    .error(function() {
+                        $("#message").append('<div class="alert"><button type="button" class="close" data-dismiss="alert">&times;</button><strong>Warning!</strong> An error has happened trying to browse item: <strong>'
+                            + getPath + '</strong></div>');
+                    });
+            };
+
+            self.loadData("c:\\");
+        }
+
+        ko.applyBindings(new EntriesViewModel());
+    </script>
+}
